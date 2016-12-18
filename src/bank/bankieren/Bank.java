@@ -57,10 +57,7 @@ public class Bank implements IBank {
         
 	public boolean maakOver(int source, int destination, Money money)
 			throws NumberDoesntExistException {
-            boolean success = false;
-            transferLock.lock();
-            try{
-                if (source == destination)
+		if (source == destination)
 			throw new RuntimeException(
 					"cannot transfer money to your own account");
 		if (!money.isPositive())
@@ -73,7 +70,7 @@ public class Bank implements IBank {
 
 		Money negative = Money.difference(new Money(0, money.getCurrency()),
 				money);
-		success = source_account.muteer(negative);
+		boolean success = source_account.muteer(negative);
 		if (!success)
 			return false;
 
@@ -85,14 +82,7 @@ public class Bank implements IBank {
 
 		if (!success) // rollback
 			source_account.muteer(money);
-		
-            }catch(Exception e){
-                System.out.println(e.getMessage());
-                
-            } finally{
-                transferLock.unlock();
-            }
-            return success;
+		return success;
 	}
 
 	@Override
