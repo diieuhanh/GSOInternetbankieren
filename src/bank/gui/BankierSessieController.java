@@ -9,10 +9,15 @@ import bank.bankieren.IRekening;
 import bank.bankieren.Money;
 import bank.internettoegang.IBalie;
 import bank.internettoegang.IBankiersessie;
+import bank.internettoegang.IRemotePropertyListener;
 import fontys.util.InvalidSessionException;
 import fontys.util.NumberDoesntExistException;
+import java.beans.PropertyChangeEvent;
 import java.net.URL;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,13 +28,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import bank.internettoegang.*;
 
 /**
  * FXML Controller class
  *
  * @author frankcoenen
  */
-public class BankierSessieController implements Initializable {
+public class BankierSessieController implements Initializable, IRemotePropertyListener {
 
     @FXML
     private Hyperlink hlLogout;
@@ -53,6 +59,9 @@ public class BankierSessieController implements Initializable {
     private BankierClient application;
     private IBalie balie;
     private IBankiersessie sessie;
+    private Money money;
+    private Registry registry = null;
+    private IRemotePublisherForListener publisher;
 
     public void setApp(BankierClient application, IBalie balie, IBankiersessie sessie) {
         this.balie = balie;
@@ -81,6 +90,20 @@ public class BankierSessieController implements Initializable {
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+        registry = locateRegistry("localhost", 1099);
+
+        try {
+            publisher = (IRemotePublisherForListener) registry.lookup("remotePublisher");
+            publisher.subscribeRemoteListener(this, "money");
+
+            if (publisher != null) {
+                System.out.println("Client: Remote publisher bound");
+            } else {
+                System.out.println("Client: Could not bind remote publisher");
+            }
+        } catch (RemoteException | NotBoundException ex) {
+            Logger.getLogger(BankierSessieController.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @FXML
@@ -110,5 +133,26 @@ public class BankierSessieController implements Initializable {
             e1.printStackTrace();
             taMessage.setText(e1.getMessage());
         }
+    }
+
+    @Override
+    public void propertyChange(PropertyChangeEvent evt) throws RemoteException {
+        money = (Money) evt.getNewValue();
+        tfBalance.setText(money.toString());
+
+    }
+
+    private Registry locateRegistry(String ipAddress, int portNumber) {
+
+        // Locate registry at IP address and port number
+        Registry registry = null;
+        try {
+            registry = LocateRegistry.getRegistry(ipAddress, portNumber);
+        } catch (RemoteException ex) {
+            System.out.println("Client: Cannot locate registry");
+            System.out.println("Client: RemoteException: " + ex.getMessage());
+            registry = null;
+        }
+        return registry;
     }
 }
